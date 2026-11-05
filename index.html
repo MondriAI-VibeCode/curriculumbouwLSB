@@ -13,6 +13,11 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+  <!-- Firebase SDK (Compatibele versies voor directe browser-integratie) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+
   <style>
     .grid-bg {
       background-size: 20px 20px;
@@ -557,8 +562,26 @@
     </div>
   </div>
 
-  <!-- JavaScript Logica -->
+  <!-- JavaScript Logica & Firestore Cloud Integratie -->
   <script>
+    // -------------------------------------------------------------
+    // FIREBASE INITIALISATIE MET JOUW SPECIFIEKE PROJECT GEGEVENS
+    // -------------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGFBI0-TAHeMYQMV2SxnNpxD9Qpoo90_c",
+      authDomain: "curriculum-6996a.firebaseapp.com",
+      projectId: "curriculum-6996a",
+      storageBucket: "curriculum-6996a.firebasestorage.app",
+      messagingSenderId: "761135749262",
+      appId: "1:761135749262:web:a2059290c94fcee809d1df",
+      measurementId: "G-MFKJMS7MTB"
+    };
+
+    // Initialiseer Firebase Apps & Analytics
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+    const db = firebase.firestore();
+
     // COMPLETE DATASET VAN VAKKENNIS EN VAARDIGHEDEN
     const ALL_CREBOS_N34 = ['27182','27183','27184','27185','27186'];
     const NIV4_CREBOS = ['27183','27184','27185','27186'];
@@ -680,7 +703,7 @@
       { id: 'P2K1_S_12', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan rapportagevaardigheden toepassen (schriftelijk en mondeling)', crebos: ['27183'] },
       { id: 'P2K1_S_13', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan draagvlak creëren en behouden', crebos: ['27183'] },
       { id: 'P2K1_S_14', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan vergadertechnieken toepassen', crebos: ['27183'] },
-      { id: 'P2K1_S_15', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan onderzoeksvaardigheden toepassen bij het onderzoeken van mogelijkheden voor een SB-activiteitenprogramma', crebos: ['27183'] },
+      { id: 'P2K1_S_15', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan onderzoeksvaardigheden toepassen bij het onderzoeken van возможностей voor een SB-activiteitenprogramma', crebos: ['27183'] },
       { id: 'P2K1_S_16', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan een netwerk opbouwen en onderhouden', crebos: ['27183'] },
       { id: 'P2K1_S_17', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan belangen herkennen, betrokkenen aansturen en instrueren en plannen en organiseren', crebos: ['27183'] },
 
@@ -750,7 +773,7 @@
       { id: 'P4K1_S_5', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Begeleiden en Agogiek', tekst: 'kan adviseren over beweging in relatie tot een gezonde leefstijl', crebos: ['27185'] },
 
       { id: 'P4K1_V_11', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft brede kennis van de kenmerken van een fysiek en sociaal veilige SB-omgeving', crebos: ['27185'] },
-      { id: 'P4K1_S_6', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en mishandeling en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27185'] },
+      { id: 'P4K1_S_6', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en mishandeling en daarop actie unternehmen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27185'] },
       { id: 'P4K1_S_7', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ['27185'] },
 
       { id: 'P4K1_V_12', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Doelgroepen en Ziektebeelden', tekst: 'heeft brede kennis van (inter) culturele verschillen', crebos: ['27185'] },
@@ -863,24 +886,37 @@
       return { bot: 550, bpv: 400, flex: 50 };
     }
 
+    // FIREBASE DATA FUNCTIES (VERVANGT LOKALE STORAGE)
+    function saveData() {
+      db.collection('curriculum').doc('hoofd_data').set({
+        curriculumData: curriculumData,
+        isCurriculumLocked: isCurriculumLocked,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(err => console.error("Fout bij opslaan in Firebase Cloud:", err));
+    }
+
     function initApp() {
-      const savedData = localStorage.getItem('curriculum_data_store_v8');
-      const savedLock = localStorage.getItem('curriculum_lock_state');
+      // Realtime Luisteraar naar Firestore Database
+      db.collection('curriculum').doc('hoofd_data').onSnapshot((doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          curriculumData = data.curriculumData || {};
+          isCurriculumLocked = data.isCurriculumLocked !== undefined ? data.isCurriculumLocked : true;
 
-      if (savedData) {
-        try { curriculumData = JSON.parse(savedData); } catch(e) { initDefaultData(); }
-      } else {
+          selectedCompareYears = Object.keys(curriculumData);
+          populateYearSelect();
+          renderCompareCheckboxes();
+          loadCurrentYearData();
+          applyLockState();
+        } else {
+          // Eerste keer inschakelen: vul de Cloud Database met de standaard leerjaren
+          initDefaultData();
+          saveData();
+        }
+      }, (error) => {
+        console.error("Fout bij ophalen realtime data uit Firebase:", error);
         initDefaultData();
-      }
-
-      if (savedLock !== null) isCurriculumLocked = (savedLock === 'true');
-
-      selectedCompareYears = Object.keys(curriculumData);
-
-      populateYearSelect();
-      renderCompareCheckboxes();
-      loadCurrentYearData();
-      applyLockState();
+      });
     }
 
     function initDefaultData() {
@@ -896,11 +932,6 @@
           subjects: []
         };
       });
-    }
-
-    function saveData() {
-      localStorage.setItem('curriculum_data_store_v8', JSON.stringify(curriculumData));
-      localStorage.setItem('curriculum_lock_state', isCurriculumLocked);
     }
 
     function toggleGlobalLock() {
@@ -977,6 +1008,7 @@
 
     function populateYearSelect() {
       const select = document.getElementById('yearSelect');
+      const currentSelected = select.value;
       select.innerHTML = '';
       Object.keys(curriculumData).forEach(year => {
         const option = document.createElement('option');
@@ -984,6 +1016,9 @@
         option.textContent = year;
         select.appendChild(option);
       });
+      if (currentSelected && curriculumData[currentSelected]) {
+        select.value = currentSelected;
+      }
     }
 
     function renderCompareCheckboxes() {
@@ -1072,12 +1107,11 @@
 
     function renderCompetenceCheckboxes() {
       const currentYear = document.getElementById('yearSelect').value;
-      const crebo = curriculumData[currentYear].crebo || '27183';
+      const crebo = curriculumData[currentYear] ? curriculumData[currentYear].crebo : '27183';
       const container = document.getElementById('competenceCheckboxesList');
       const wrapper = document.getElementById('competenceAccordionWrapper');
       container.innerHTML = '';
 
-      // Niveau 2 (Crebo 25414) heeft geen vakkennis/vaardigheden koppelingsverplichting
       if (crebo === '25414') {
         wrapper.classList.add('hidden');
         return;
@@ -1319,7 +1353,6 @@
           }
         }
 
-        // Unieke kleurstijlen voor gesplitste categorieën
         let bgClass = 'bg-slate-500 text-white';
         switch(subject.category) {
           case 'Generiek': bgClass = 'bg-indigo-500 text-white'; break;
@@ -1494,7 +1527,6 @@
       const filterCrebo = document.getElementById('matrixCreboFilter').value;
       tbody.innerHTML = '';
 
-      // Geen matrix voor niveau 2 (Crebo 25414)
       if (filterCrebo === '25414') {
         tbody.innerHTML = `
           <tr>
@@ -1508,13 +1540,12 @@
         return;
       }
 
-      // Filter relevante eisen op basis van het gekozen niveau/Crebo
       let filteredEisen = KWALIFICATIEDOSSIER_EISEN.filter(e => {
         if (filterCrebo === 'all') {
           return true;
-        } else if (filterCrebo === '27182') { // Niveau 3
+        } else if (filterCrebo === '27182') {
           return e.kerntaak === 'B1-K1' || e.kerntaak === 'B1-K2';
-        } else if (NIV4_CREBOS.includes(filterCrebo)) { // Niveau 4
+        } else if (NIV4_CREBOS.includes(filterCrebo)) {
           if (e.kerntaak === 'B1-K1' || e.kerntaak === 'B1-K2') return true;
           if (e.kerntaak === 'Projectmatig (K2)') return true;
           if (filterCrebo === '27183' && e.kerntaak === 'P2-K1') return true;
@@ -1823,6 +1854,7 @@
       event.target.value = '';
     }
 
+    // Start de applicatie en maak verbinding met Firebase
     window.onload = initApp;
   </script>
 </body>
