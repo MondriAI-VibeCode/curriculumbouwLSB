@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculum Bouwer MBO - Kwalificatiedossier Sport & Bewegen</title>
+  
+  <!-- CSS Framework & Iconen -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Externe Bibliotheken -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    .grid-bg {
+      background-size: 20px 20px;
+      background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+    }
+
+    .pdf-page-break {
+      page-break-before: always !important;
+      break-before: page !important;
+    }
+
+    .pdf-avoid-break {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    @media print {
+      body { background: white !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="bg-indigo-900 text-white shadow-md p-4 sticky top-0 z-30 no-print">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-cubes text-3xl text-indigo-300"></i>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Curriculum Bouwer MBO</h1>
+          <p class="text-xs text-indigo-200">Kwalificatiedossier Sport & Bewegen (Crebo 25414 - 27186)</p>
+        </div>
+      </div>
+      
+      <!-- Actieknoppen Header -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="toggleGlobalLock()" id="globalLockBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+          <i id="globalLockIcon" class="fa-solid fa-lock"></i> <span id="globalLockText">Curriculum Ontgrendelen</span>
+        </button>
+        <button onclick="openImportModal()" class="bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm lock-disable">
+          <i class="fa-solid fa-file-import"></i> Excel Import
+        </button>
+        <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-file-excel"></i> Excel Export
+        </button>
+        <button onclick="exportToPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-file-pdf"></i> PDF Export
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigatiestrip & Tabs -->
+  <div class="bg-indigo-950 text-white border-t border-indigo-800 px-4 py-2.5 no-print">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-indigo-300 uppercase tracking-wider mr-2">Weergave:</span>
+        <button id="tabSingleBtn" onclick="switchViewMode('single')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
+          <i class="fa-solid fa-calendar-day"></i> Enkel Leerjaar
+        </button>
+        <button id="tabCompareBtn" onclick="switchViewMode('compare')" class="bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
+          <i class="fa-solid fa-border-all"></i> Volledig Curriculum Crebo
+        </button>
+        <button id="tabMatrixBtn" onclick="switchViewMode('matrix')" class="bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
+          <i class="fa-solid fa-list-check"></i> Dekkingsmatrix
+        </button>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs">
+        <button onclick="exportJSONBackup()" class="bg-indigo-800 hover:bg-indigo-700 text-indigo-100 px-2.5 py-1 rounded transition flex items-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Backup Opslaan
+        </button>
+        <label class="bg-indigo-800 hover:bg-indigo-700 text-indigo-100 px-2.5 py-1 rounded transition flex items-center gap-1.5 cursor-pointer lock-disable">
+          <i class="fa-solid fa-upload"></i> Backup Inladen
+          <input type="file" accept=".json" class="hidden" onchange="importJSONBackup(event)">
+        </label>
+        <div id="borgingStatusBadge" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
+          <i class="fa-solid fa-shield-halved"></i> <span>Geborgde Status</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HOOFDCONTAINER -->
+  <main class="max-w-7xl mx-auto w-full p-4 md:p-6 flex-1">
+
+    <!-- WEERGAVE 1: ENKEL LEERJAAR -->
+    <div id="singleYearView" class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+      <!-- Sidebar -->
+      <div class="lg:col-span-1 space-y-6 no-print">
+        
+        <!-- Leerjaar & Crebo Selectie -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+            <i class="fa-solid fa-graduation-cap text-indigo-600"></i> Leerjaar & Crebo
+          </h2>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Selecteer Leerjaar</label>
+            <select id="yearSelect" onchange="switchYear()" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Gekoppelde Crebo / Kwalificatie</label>
+            <select id="creboSelect" onchange="updateCreboForYear()" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 lock-disable">
+              <option value="25414">25414 - Medewerker sport en recreatie (Niv 2)</option>
+              <option value="27182">27182 - Sport- en bewegingsleider (Niv 3)</option>
+              <option value="27183">27183 - Buurtsportcoach (Niv 4)</option>
+              <option value="27184">27184 - Leefstijlcoach (Niv 4)</option>
+              <option value="27185">27185 - Bewegingsagoog (Niv 4)</option>
+              <option value="27186">27186 - Trainer-coach/Instructeur (Niv 4)</option>
+            </select>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <input type="text" id="newYearInput" placeholder="Nieuw leerjaar..." class="flex-1 border border-slate-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 lock-disable">
+            <button onclick="addNewYear()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition lock-disable">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Normering -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-indigo-600"></i> Streefnormen (Uren)
+            </h2>
+            <i id="normLockIcon" class="fa-solid fa-lock text-slate-400 text-lg"></i>
+          </div>
+          <div class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-medium text-slate-600">BOT Streefnorm (Uur)</label>
+              <input type="number" id="normBOT" disabled onchange="updateNorms()" class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm disabled:opacity-70 focus:ring-2 focus:ring-indigo-500 lock-disable">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600">BPV Streefnorm (40 wk basis)</label>
+              <input type="number" id="normBPV" disabled onchange="updateNorms()" class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm disabled:opacity-70 focus:ring-2 focus:ring-indigo-500 lock-disable">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600">Flexibele Uren Streefnorm</label>
+              <input type="number" id="normFlex" disabled onchange="updateNorms()" class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm disabled:opacity-70 focus:ring-2 focus:ring-indigo-500 lock-disable">
+            </div>
+          </div>
+        </div>
+
+        <!-- Vak Toevoegen Formulier -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
+            <i class="fa-solid fa-plus-circle text-indigo-600"></i> Vak / BPV Toevoegen
+          </h2>
+          <form onsubmit="addSubject(event)" class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Naam van het vak</label>
+              <input type="text" id="subjName" required placeholder="bijv. Didactiek of BPV Stage" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Categorie</label>
+              <select id="subjCategory" onchange="handleCategoryChange()" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable">
+                <option value="Generiek">Generiek Deel</option>
+                <option value="Beroepsspecifiek">Beroepsspecifiek</option>
+                <option value="Profiel">Profiel</option>
+                <option value="Project">Projecten</option>
+                <option value="BPV">BPV (Stage)</option>
+                <option value="Flexibel">Flexibel</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Blok / Periode Indeling</label>
+              <select id="subjBlock" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable">
+                <option value="Blok 1">Blok 1</option>
+                <option value="Blok 2">Blok 2</option>
+                <option value="Blok 3">Blok 3</option>
+                <option value="Blok 4">Blok 4</option>
+                <option value="Halfjaar 1">Halfjaar 1 (Blok 1 & 2)</option>
+                <option value="Halfjaar 2">Halfjaar 2 (Blok 3 & 4)</option>
+                <option value="Heel Jaar">Heel Jaar (Blok 1 t/m 4)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Duur (weken)</label>
+                <select id="subjDuration" onchange="recalculateHours('duration')" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable">
+                  <option value="32">Heel jaar (32 wk)</option>
+                  <option value="16">Half jaar (16 wk)</option>
+                  <option value="8">1 Blok (8 wk)</option>
+                  <option value="40">BPV (40 wk)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Uren per week</label>
+                <input type="number" step="0.1" id="subjHoursWeek" min="0" value="2" oninput="recalculateHours('week')" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Totaal uren over periode</label>
+              <input type="number" step="1" id="subjTotalHours" min="0" value="64" oninput="recalculateHours('total')" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 bg-slate-50 lock-disable">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Inhoud / Omschrijving vak</label>
+              <textarea id="subjContent" rows="2" placeholder="Inhoud van de lessen, kerntaken, doelen..." class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 lock-disable"></textarea>
+            </div>
+
+            <!-- Accordion Vakkennis / Vaardigheden -->
+            <div id="competenceAccordionWrapper" class="border rounded-lg p-3 bg-slate-50 space-y-2">
+              <button type="button" onclick="toggleCompetenceAccordion()" class="w-full flex justify-between items-center text-xs font-bold text-indigo-900 focus:outline-none">
+                <span><i class="fa-solid fa-list-check text-indigo-600 mr-1"></i> Koppelen Eisen</span>
+                <i id="accordionIcon" class="fa-solid fa-chevron-down"></i>
+              </button>
+              
+              <div id="competenceAccordionContent" class="hidden space-y-3 pt-2 text-xs max-h-96 overflow-y-auto border-t pr-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <input type="text" id="searchCompetenceInput" onkeyup="filterCompetenceCheckboxes()" placeholder="Zoek op trefwoord..." class="w-full text-xs p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500">
+                  <button type="button" onclick="toggleAllSubAccordions()" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded font-semibold whitespace-nowrap">
+                    In/Uitvouwen
+                  </button>
+                </div>
+
+                <div id="competenceCheckboxesList" class="space-y-2">
+                  <!-- Dynamische geaccordeoneerde lijst per Kerntaak en Categorie -->
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition shadow lock-disable">
+              Toevoegen aan Curriculum
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- Dashboard Canvas gebied -->
+      <div class="lg:col-span-3 space-y-6">
+        <div id="pdfExportArea" class="space-y-6">
+          
+          <!-- Pagina 1 Single -->
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+            <div class="border-b pb-4 flex justify-between items-end flex-wrap gap-2">
+              <div>
+                <h2 id="pdfHeaderTitle" class="text-2xl font-bold text-slate-800">Curriculum Dashboard</h2>
+                <p class="text-xs text-slate-500">Gestapelde opbouw van BOT, BPV en Flexibele uren per leerjaar.</p>
+              </div>
+              <div id="pdfHeaderMeta" class="text-right text-xs text-slate-500 font-medium"></div>
+            </div>
+
+            <!-- Gestapelde visualisatie -->
+            <div class="pdf-avoid-break">
+              <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-indigo-600"></i> Gestapelde Urenopbouw
+              </h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- BOT -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="font-bold text-sm text-indigo-950">BOT Uren (Begeleid)</span>
+                      <span id="botHeaderStatus" class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">0 / 0u</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mb-3">Generiek + Beroepsspecifiek + Profiel + Projecten</p>
+                    <div id="stackedBOTBar" class="w-full bg-slate-200 rounded-lg min-h-[160px] p-1 flex flex-col-reverse gap-1 overflow-hidden border border-slate-300"></div>
+                  </div>
+                  <div id="botFooterText" class="mt-3 pt-2 border-t text-xs text-slate-600 font-medium">Status: 0 uur resterend</div>
+                </div>
+
+                <!-- BPV -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="font-bold text-sm text-emerald-950">BPV Uren (Stage)</span>
+                      <span id="bpvHeaderStatus" class="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">0 / 0u</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mb-3">Berekend op basis van 40 weken</p>
+                    <div id="stackedBPVBar" class="w-full bg-slate-200 rounded-lg min-h-[160px] p-1 flex flex-col-reverse gap-1 overflow-hidden border border-slate-300"></div>
+                  </div>
+                  <div id="bpvFooterText" class="mt-3 pt-2 border-t text-xs text-slate-600 font-medium">Status: 0 uur resterend</div>
+                </div>
+
+                <!-- Flex -->
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="font-bold text-sm text-amber-950">Flexibele Uren</span>
+                      <span id="flexHeaderStatus" class="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">0 / 0u</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mb-3">Keuzedelen & Vrije invulling</p>
+                    <div id="stackedFlexBar" class="w-full bg-slate-200 rounded-lg min-h-[160px] p-1 flex flex-col-reverse gap-1 overflow-hidden border border-slate-300"></div>
+                  </div>
+                  <div id="flexFooterText" class="mt-3 pt-2 border-t text-xs text-slate-600 font-medium">Status: 0 uur resterend</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Blokken Matrix -->
+            <div class="pdf-avoid-break space-y-3 pt-2 border-t border-slate-200">
+              <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <i class="fa-solid fa-calendar-days text-indigo-600"></i> Overzicht Vakken per Blok & Periode
+                </h3>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-h-[180px] flex flex-col">
+                  <div class="font-bold text-xs text-slate-700 border-b pb-1 mb-2 flex justify-between">
+                    <span>Blok 1</span>
+                    <span id="b1BOT" class="text-indigo-700 font-mono">0u BOT</span>
+                  </div>
+                  <div id="block1Canvas" class="space-y-1.5 flex-1"></div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-h-[180px] flex flex-col">
+                  <div class="font-bold text-xs text-slate-700 border-b pb-1 mb-2 flex justify-between">
+                    <span>Blok 2</span>
+                    <span id="b2BOT" class="text-indigo-700 font-mono">0u BOT</span>
+                  </div>
+                  <div id="block2Canvas" class="space-y-1.5 flex-1"></div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-h-[180px] flex flex-col">
+                  <div class="font-bold text-xs text-slate-700 border-b pb-1 mb-2 flex justify-between">
+                    <span>Blok 3</span>
+                    <span id="b3BOT" class="text-indigo-700 font-mono">0u BOT</span>
+                  </div>
+                  <div id="block3Canvas" class="space-y-1.5 flex-1"></div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 min-h-[180px] flex flex-col">
+                  <div class="font-bold text-xs text-slate-700 border-b pb-1 mb-2 flex justify-between">
+                    <span>Blok 4</span>
+                    <span id="b4BOT" class="text-indigo-700 font-mono">0u BOT</span>
+                  </div>
+                  <div id="block4Canvas" class="space-y-1.5 flex-1"></div>
+                </div>
+              </div>
+
+              <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div class="font-bold text-xs text-slate-700 border-b pb-1 mb-2">
+                  Jaaroverschrijdende Vakken / BPV (Halfjaar & Heel Jaar)
+                </div>
+                <div id="multiBlockCanvas" class="flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagina 2 Single -->
+          <div class="pdf-page-break bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <div class="border-b pb-3 flex justify-between items-center">
+              <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-book-open text-indigo-600"></i> Vakinhoud & Kwalificatie Koppeling
+              </h3>
+              <span class="text-xs text-slate-400 font-mono">Documentatie</span>
+            </div>
+            
+            <div id="pdfContentList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- WEERGAVE 2: VOLLEDIG CURRICULUM CREBO -->
+    <div id="compareView" class="hidden space-y-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3 no-print">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-600"></i> Selecteer Leerjaren voor Volledig Curriculum Crebo
+          </h2>
+          <div class="flex gap-2">
+            <button onclick="selectAllYearsForCompare(true)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded">Alles Selecteren</button>
+            <button onclick="selectAllYearsForCompare(false)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded">Wis Selectie</button>
+          </div>
+        </div>
+        <div id="compareYearCheckboxes" class="flex flex-wrap gap-3 pt-1"></div>
+      </div>
+
+      <div id="compareTotalSummaryCard" class="bg-indigo-900 text-white p-5 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h3 class="text-lg font-bold flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-indigo-300"></i> Totale Opleiding Urenanalyse
+          </h3>
+          <p id="compareSelectedYearsCountText" class="text-xs text-indigo-200">Selectie: 0 leerjaren gekozen</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-6 text-sm font-mono">
+          <div class="text-center">
+            <div class="text-xs uppercase text-indigo-300 font-sans">Totaal BOT</div>
+            <div id="totalProgBOT" class="text-xl font-bold text-indigo-100">0 u</div>
+          </div>
+          <div class="text-center border-l border-indigo-700 pl-6">
+            <div class="text-xs uppercase text-emerald-300 font-sans">Totaal BPV</div>
+            <div id="totalProgBPV" class="text-xl font-bold text-emerald-300">0 u</div>
+          </div>
+          <div class="text-center border-l border-indigo-700 pl-6">
+            <div class="text-xs uppercase text-amber-300 font-sans">Totaal Flex</div>
+            <div id="totalProgFlex" class="text-xl font-bold text-amber-300">0 u</div>
+          </div>
+          <div class="text-center border-l border-indigo-700 pl-6">
+            <div class="text-xs uppercase text-white font-sans">Totale Opleiding</div>
+            <div id="totalProgAll" class="text-2xl font-bold text-white">0 u</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="compareExportArea" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+        <div class="border-b pb-3 flex justify-between items-end">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800">Volledig Curriculum Crebo</h2>
+            <p class="text-xs text-slate-500">Overzicht van alle geselecteerde leerjaren en hun specifieke vakkenaanbod.</p>
+          </div>
+        </div>
+        <div id="compareColumnsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 items-start"></div>
+      </div>
+    </div>
+
+    <!-- WEERGAVE 3: KWALIFICATIEDOSSIER DEKKINGSMATRIX -->
+    <div id="matrixView" class="hidden space-y-6">
+      <div id="matrixExportArea" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+        <div class="border-b pb-4 flex justify-between items-center flex-wrap gap-3">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-indigo-600"></i> Dekkingsmatrix Kwalificatiedossier
+            </h2>
+            <p class="text-xs text-slate-500">Berekend volgens het Niveau & Crebo van de actieve en gekoppelde klassen.</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 flex items-center gap-2">
+              <i class="fa-solid fa-circle-check"></i> <span id="matrixTotalCoverageText">Dekkingsgraad: 0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter per Crebo op Matrix -->
+        <div class="flex gap-4 items-center bg-slate-50 p-3 rounded-lg border text-xs no-print">
+          <span class="font-bold text-slate-700">Filter Crebo / Niveau:</span>
+          <select id="matrixCreboFilter" onchange="renderMatrixView()" class="border border-slate-300 rounded p-1.5 bg-white font-medium">
+            <option value="all">Alle Relevante Crebo's / Kerntaken</option>
+            <option value="25414">25414 - Medewerker sport en recreatie (Niv 2 - Geen matrix)</option>
+            <option value="27182">27182 - Sport- en bewegingsleider (Niv 3 - Alleen B1-K1 & B1-K2)</option>
+            <option value="27183">27183 - Buurtsportcoach (Niv 4 - Basis + P2-K1 + K2)</option>
+            <option value="27184">27184 - Leefstijlcoach (Niv 4 - Basis + P3-K1 + K2)</option>
+            <option value="27185">27185 - Bewegingsagoog (Niv 4 - Basis + P4-K1 + K2)</option>
+            <option value="27186">27186 - Trainer-coach/Instructeur (Niv 4 - Basis + P5-K1 + K2)</option>
+          </select>
+        </div>
+
+        <!-- Tabel van Kwalificatie-eisen -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-indigo-900 text-white border-b">
+                <th class="p-3 w-1/12">Code</th>
+                <th class="p-3 w-2/12">Categorie / Type</th>
+                <th class="p-3 w-5/12">Vakkennis / Vaardigheid Omschrijving</th>
+                <th class="p-3 w-1/12 text-center">Status (Aanklikbaar)</th>
+                <th class="p-3 w-3/12">Afgedekt in Vak(ken)</th>
+              </tr>
+            </thead>
+            <tbody id="matrixTableBody" class="divide-y divide-slate-200">
+              <!-- Dynamische matrix rijen -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Vak Details Modal -->
+  <div id="detailsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 no-print">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+      <div class="flex justify-between items-start border-b pb-3">
+        <h3 id="modalTitle" class="text-lg font-bold text-slate-800">Vak Details</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      
+      <div id="modalBody" class="space-y-3 text-sm"></div>
+
+      <div class="flex justify-between items-center pt-3 border-t">
+        <button id="modalDeleteBtn" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 lock-disable">
+          <i class="fa-solid fa-trash"></i> Verwijderen
+        </button>
+        <button onclick="closeModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-semibold transition">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Direct Koppel-Modal vanuit Dekkingsmatrix -->
+  <div id="linkCompetenceModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 no-print">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex justify-between items-start border-b pb-3">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-link text-indigo-600"></i> Eis Koppelen aan Vak
+        </h3>
+        <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div id="linkModalContent" class="text-xs space-y-3">
+        <!-- Dynamische koppelopties -->
+      </div>
+
+      <div class="flex justify-end pt-2 border-t">
+        <button onclick="closeLinkModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-semibold">Sluiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Excel Import Modal -->
+  <div id="importModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 no-print">
+    <div class="bg-white rounded-xl shadow-xl max-w-xl w-full p-6 space-y-4">
+      <div class="flex justify-between items-start border-b pb-3">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Importeren
+        </h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-600">
+        <p>Upload een Excel-bestand (.xlsx / .xls) met de bekende kolomstructuur.</p>
+      </div>
+
+      <div class="pt-2">
+        <label class="w-full bg-indigo-50 border-2 border-dashed border-indigo-300 hover:border-indigo-500 p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-600 mb-1"></i>
+          <span class="text-sm font-semibold text-indigo-900">Selecteer Excel bestand</span>
+          <input type="file" id="excelImportInput" accept=".xlsx, .xls" class="hidden" onchange="importExcel(event)">
+        </label>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeImportModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-semibold">Annuleren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Logica -->
+  <script>
+    // COMPLETE DATASET VAN VAKKENNIS EN VAARDIGHEDEN
+    const ALL_CREBOS_N34 = ['27182','27183','27184','27185','27186'];
+    const NIV4_CREBOS = ['27183','27184','27185','27186'];
+
+    const KWALIFICATIEDOSSIER_EISEN = [
+      // KERNTACK B1-K1: Biedt een les of training aan (Niveau 3 & 4)
+      { id: 'B1K1_V_ALG_1', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van relevante wet- en regelgeving', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_ALG_2', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van vaktermen in een moderne vreemde taal passend bij het werkveld', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_ALG_3', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van digitale hulpmiddelen, zoals trainingsapps of draagbare technologie', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_ALG_4', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van de invloed van digitalisering op het werkveld', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_ALG_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Algemeen', tekst: 'kan digitale vaardigheden toepassen bij de werkzaamheden', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_ALG_5', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van relevante procedures en voorschriften van de organisatie', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K1_V_SB_1', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van het werkveld sport en bewegen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_SB_2', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van de kenmerken van een leven lang bewegen (beweegwijsheid)', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_SB_3', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van actuele spelregels en wedstrijdreglementen van diverse sporten', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_SB_4', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van sportspecifieke technieken en tactieken', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_SB_5', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van sporttechnische doorlopende leerlijnen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_SB_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Sport en bewegen', tekst: 'kan motorische vaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_SB_2', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Sport en bewegen', tekst: 'kan sportvaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_SB_3', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Sport en bewegen', tekst: 'kan het vaardigheidsniveau van deelnemers beoordelen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_SB_6', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede kennis van SB-locaties, materialen en middelen', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K1_V_GL_1', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van anatomie en fysiologie in relatie tot sport en bewegen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_GL_2', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van de breed motorische ontwikkeling van SB-deelnemers', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_GL_3', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van blessurepreventie', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_GL_4', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van voeding, sport en bewegen in relatie tot een gezonde leefstijl', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_GL_5', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van (beroeps) vitaliteit', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_GL_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Beweging en gezonde leefstijl', tekst: 'kan beweegactiviteiten uitvoeren gericht op het bevorderen van de gezondheid', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K1_V_PD_1', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft brede kennis van doelgroepen en bijbehorende kenmerken', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_2', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van de maatschappelijke waarde van sport en bewegen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_3', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van ontwikkelingspsychologie', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_4', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van het brein en de invloed hiervan op het gedrag', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_5', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van trainingsleer', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_6', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van gamification', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_PD_7', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft kennis van groepsprocessen en groepsdynamiek', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan instructietechnieken toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_2', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan coachingsmethoden en -technieken toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_3', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan adviesvaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_4', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan positief en ontwikkelingsgericht begeleiden en instrueren', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_5', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan pedagogische vaardigheden toepassen bij het uitvoeren van SB-activiteiten', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_6', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan motivatie- en begeleidingsmethodieken toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_7', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan didactische werkvormen voor SB-activiteiten toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_PD_8', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan observatiemethoden toepassen', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K1_V_FSV_1', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft kennis van sociale veiligheid', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_FSV_2', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft kennis van sociale inclusie binnen sport en bewegen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_FSV_3', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft kennis van meldcode huiselijk geweld en kindermishandeling', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_FSV_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_FSV_2', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan ingrijpen bij onderlinge conflicten of ongewenst gedrag', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_FSV_3', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan EHBO (inclusief reanimatie) toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_V_FSV_4', kerntaak: 'B1-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft kennis van de kenmerken van een fysiek en sociaal veilige SB-omgeving', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_FSV_4', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K1_S_OC_1', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met SB-deelnemers en andere betrokkenen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_2', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan improviseren', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_3', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan communicatieve vaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_4', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan reflecteren op diens handelen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_5', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan evaluatievaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_6', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan feedbackvaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K1_S_OC_7', kerntaak: 'B1-K1', type: 'Vaardigheid', cat: 'Organiseren en communiceren', tekst: 'kan plannen en organiseren', crebos: ALL_CREBOS_N34 },
+
+      // KERNTACK B1-K2: Organiseert een kleinschalig toernooi of evenement
+      { id: 'B1K2_S_ALG_1', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Algemeen', tekst: 'kan digitale vaardigheden toepassen bij de werkzaamheden', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_V_ALG_1', kerntaak: 'B1-K2', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft kennis van relevante procedures en voorschriften van de organisatie', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ALG_2', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Algemeen', tekst: 'kan protocollen en richtlijnen toepassen met betrekking tot: gezondheid, hygiëne, veiligheid, calamiteiten, duurzaamheid, kwaliteitszorg, ergonomisch werken, kostenbewust werken', crebos: ALL_CREBOS_N34 },
+      
+      { id: 'B1K2_V_SB_1', kerntaak: 'B1-K2', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van actuele spelregels en wedstrijdreglementen van diverse sporten', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_V_SB_2', kerntaak: 'B1-K2', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van trends en ontwikkelingen in de sector sport en bewegen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_V_SB_3', kerntaak: 'B1-K2', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van e-sports en gaming', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SB_1', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Sport en bewegen', tekst: 'kan sport- en spelmaterialen selecteren en gebruiken', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K2_S_SC_1', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan samenwerken met collega\'s en/of betrokkenen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_2', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met SB-deelnemers, collega\'s en andere betrokkenen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_3', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan communicatieve vaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_4', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan communicatiemiddelen inzetten voor promotie, zoals social media', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_5', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan informatie visueel vormgeven', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_6', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_7', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan evaluatievaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_SC_8', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan feedbackvaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+
+      { id: 'B1K2_S_ORG_1', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan een draaiboek opstellen en gebruiken', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_2', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan organisatievaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_3', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan improviseren', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_4', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan administratieve vaardigheden toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_5', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan rapportagevaardigheden toepassen (schriftelijk en mondeling)', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_6', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan EHBO (inclusief reanimatie) toepassen', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_7', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan ingrijpen bij onderlinge conflicten of ongewenst gedrag', crebos: ALL_CREBOS_N34 },
+      { id: 'B1K2_S_ORG_8', kerntaak: 'B1-K2', type: 'Vaardigheid', cat: 'Organiseren & Veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ALL_CREBOS_N34 },
+
+      // PROFIEL 27183 (Buurtsportcoach - P2-K1)
+      { id: 'P2K1_V_1', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Werkveld Buurtsportcoach', tekst: 'heeft brede en specialistische kennis van het werkveld buurt, welzijn, sport (verenigingen), onderwijs, kinderopvang', crebos: ['27183'] },
+      { id: 'P2K1_V_2', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Werkveld Buurtsportcoach', tekst: 'heeft brede kennis van trends en ontwikkelingen in het werkveld', crebos: ['27183'] },
+      { id: 'P2K1_V_3', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Werkveld Buurtsportcoach', tekst: 'heeft brede en specialistische kennis van regels, richtlijnen en procedures op het gebied van veiligheid in het werkveld', crebos: ['27183'] },
+      { id: 'P2K1_V_4', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Werkveld Buurtsportcoach', tekst: 'heeft specialistische kennis van (politieke) belangen en de invloed op de organisatie en werkzaamheden', crebos: ['27183'] },
+      
+      { id: 'P2K1_V_5', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Beweegomgeving', tekst: 'heeft brede en specialistische kennis van de relatie tussen sportbeoefening, beweging en (fysieke en mentale) gezondheid', crebos: ['27183'] },
+      { id: 'P2K1_V_6', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Beweegomgeving', tekst: 'heeft brede en specialistische kennis van beweegmogelijkheden binnen kinderopvang en onderwijs', crebos: ['27183'] },
+      { id: 'P2K1_S_1', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Beweegomgeving', tekst: 'kan signalen van bewegingsarmoede herkennen en daarop actie ondernemen', crebos: ['27183'] },
+
+      { id: 'P2K1_V_7', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft brede kennis van groepsprocessen en groepsdynamiek', crebos: ['27183'] },
+      { id: 'P2K1_S_2', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan motivatie- en begeleidingsmethodieken toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_3', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan didactische werkvormen voor SB-activiteiten toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_4', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan didactische en pedagogische vaardigheden toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_5', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Pedagogiek en didactiek', tekst: 'kan observatiemethoden toepassen', crebos: ['27183'] },
+
+      { id: 'P2K1_V_8', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft brede kennis van de kenmerken van een sociaal en fysiek veilige sport- en beweegomgeving', crebos: ['27183'] },
+      { id: 'P2K1_S_6', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en kindermishandeling en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27183'] },
+      { id: 'P2K1_S_7', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan conflictbeheersingsmethoden toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_8', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ['27183'] },
+
+      { id: 'P2K1_V_9', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Doelgroepen', tekst: 'heeft brede en specialistische kennis van relevante doelgroepen in het werkveld', crebos: ['27183'] },
+      { id: 'P2K1_V_10', kerntaak: 'P2-K1', type: 'Vakkennis', cat: 'Doelgroepen', tekst: 'heeft brede kennis van (inter) culturele verschillen', crebos: ['27183'] },
+
+      { id: 'P2K1_S_9', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met SB-deelnemers en andere betrokkenen', crebos: ['27183'] },
+      { id: 'P2K1_S_10', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan communicatieve vaardigheden toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_11', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen, evaluatievaardigheden en feedbackvaardigheden toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_12', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan rapportagevaardigheden toepassen (schriftelijk en mondeling)', crebos: ['27183'] },
+      { id: 'P2K1_S_13', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan draagvlak creëren en behouden', crebos: ['27183'] },
+      { id: 'P2K1_S_14', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan vergadertechnieken toepassen', crebos: ['27183'] },
+      { id: 'P2K1_S_15', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan onderzoeksvaardigheden toepassen bij het onderzoeken van mogelijkheden voor een SB-activiteitenprogramma', crebos: ['27183'] },
+      { id: 'P2K1_S_16', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan een netwerk opbouwen en onderhouden', crebos: ['27183'] },
+      { id: 'P2K1_S_17', kerntaak: 'P2-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan belangen herkennen, betrokkenen aansturen en instrueren en plannen en organiseren', crebos: ['27183'] },
+
+      // PROFIEL 27184 (Leefstijlcoach - P3-K1)
+      { id: 'P3K1_V_1', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Werkveld Leefstijlcoach', tekst: 'heeft brede en specialistische kennis van het werkveld van de leefstijlcoach', crebos: ['27184'] },
+      { id: 'P3K1_V_2', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Werkveld Leefstijlcoach', tekst: 'heeft specialistische kennis van trends en ontwikkelingen met betrekking tot preventieve gezondheidszorg en leefstijl', crebos: ['27184'] },
+      { id: 'P3K1_V_3', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Werkveld Leefstijlcoach', tekst: 'heeft kennis van de sociale kaart van organisaties en professionals gericht op (preventieve) gezondheidszorg en sport- en bewegen', crebos: ['27184'] },
+
+      { id: 'P3K1_V_4', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft kennis van begrippen en modellen van anatomie en fysiologie', crebos: ['27184'] },
+      { id: 'P3K1_V_5', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft brede en specialistische kennis van voeding, beweging en (gezonde) leefstijl', crebos: ['27184'] },
+      { id: 'P3K1_V_6', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft specialistische kennis van concepten als gezonde school/wijk/stad', crebos: ['27184'] },
+      { id: 'P3K1_V_7', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft brede kennis van \'gezondheidsmetingen\' en de betekenis van verkregen waarden (bijvoorbeeld bloedsuikerspiegel, cholesterol, bloeddruk, BMI)', crebos: ['27184'] },
+      { id: 'P3K1_V_8', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft brede kennis van veelvoorkomende ziektebeelden', crebos: ['27184'] },
+      { id: 'P3K1_V_9', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft brede kennis van de kenmerken van een verslaving, psychose en depressie', crebos: ['27184'] },
+      { id: 'P3K1_V_10', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Beweging en gezonde leefstijl', tekst: 'heeft brede kennis van beweegrichtlijnen van de gezondheidsraad', crebos: ['27184'] },
+      { id: 'P3K1_S_1', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Beweging en gezonde leefstijl', tekst: 'kan test- en meetinstrumenten gebruiken om de sportvaardigheid te beoordelen', crebos: ['27184'] },
+      { id: 'P3K1_S_2', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Beweging en gezonde leefstijl', tekst: 'kan een leefstijlanalyse uitvoeren', crebos: ['27184'] },
+      { id: 'P3K1_S_3', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Beweging en gezonde leefstijl', tekst: 'kan signalen van verslaving herkennen', crebos: ['27184'] },
+
+      { id: 'P3K1_S_4', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Coachen op gedragsverandering', tekst: 'kan motivatie- en begeleidingsmethodieken toepassen', crebos: ['27184'] },
+      { id: 'P3K1_V_11', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft specialistische kennis van begrippen en modellen gericht op ondersteuning bij een gedragsverandering van deelnemers/cliënten', crebos: ['27184'] },
+      { id: 'P3K1_V_12', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft brede en specialistische kennis van fysieke en mentale belasting van deelnemers/cliënten', crebos: ['27184'] },
+      { id: 'P3K1_V_13', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft specialistische kennis van omgevingsfactoren die een gezonde en actieve leefstijl bevorderen of belemmeren', crebos: ['27184'] },
+      { id: 'P3K1_V_14', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft brede en specialistische kennis van erkende en/of kansrijke leefstijlinterventies', crebos: ['27184'] },
+      { id: 'P3K1_V_15', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft specialistische kennis van technologische mogelijkheden om een gezonde leefstijl te ondersteunen', crebos: ['27184'] },
+      { id: 'P3K1_V_16', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft brede en specialistische kennis van leefstijlplannen gericht op het bevorderen van de gezondheid en een gezonde leefstijl', crebos: ['27184'] },
+      { id: 'P3K1_V_17', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Coachen op gedragsverandering', tekst: 'heeft brede kennis van verschillende leefstijlfactoren en de invloed op de gezondheid van een deelnemer/cliënt', crebos: ['27184'] },
+      { id: 'P3K1_S_5', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Coachen op gedragsverandering', tekst: 'kan interventies toepassen om een duurzame gedragsverandering te bevorderen', crebos: ['27184'] },
+      { id: 'P3K1_S_6', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Coachen op gedragsverandering', tekst: 'kan adviezen geven over gezonde beweging, voeding en ontspanning', crebos: ['27184'] },
+      { id: 'P3K1_S_7', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Coachen op gedragsverandering', tekst: 'kan coachingstechnieken toepassen', crebos: ['27184'] },
+      { id: 'P3K1_S_8', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Coachen op gedragsverandering', tekst: 'kan observatiemethoden toepassen', crebos: ['27184'] },
+
+      { id: 'P3K1_V_18', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft brede kennis van de kenmerken van een fysiek en sociaal veilige SB-omgeving', crebos: ['27184'] },
+      { id: 'P3K1_S_9', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en kindermishandeling en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27184'] },
+      { id: 'P3K1_S_10', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ['27184'] },
+
+      { id: 'P3K1_V_19', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Doelgroepen', tekst: 'heeft brede kennis van (inter) culturele verschillen', crebos: ['27184'] },
+      { id: 'P3K1_V_20', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Doelgroepen', tekst: 'heeft brede en specialistische kennis van relevante doelgroepen voor leefstijlplannen', crebos: ['27184'] },
+
+      { id: 'P3K1_S_11', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan communicatieve vaardigheden toepassen', crebos: ['27184'] },
+      { id: 'P3K1_S_12', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen', crebos: ['27184'] },
+      { id: 'P3K1_S_13', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan evaluatievaardigheden toepassen', crebos: ['27184'] },
+      { id: 'P3K1_S_14', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan feedbackvaardigheden toepassen', crebos: ['27184'] },
+      { id: 'P3K1_V_21', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft brede kennis van mogelijkheden/faciliteiten, materialen en middelen voor beweegactiviteiten', crebos: ['27184'] },
+      { id: 'P3K1_V_22', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft specialistische kennis van de grenzen van diens taken en verantwoordelijkheden', crebos: ['27184'] },
+      { id: 'P3K1_V_23', kerntaak: 'P3-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft kennis van de geldende privacywetgeving (AVG) rondom omgang met persoonsgegevens', crebos: ['27184'] },
+      { id: 'P3K1_S_15', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met deelnemers/cliënten, collega\'s en andere betrokkenen', crebos: ['27184'] },
+      { id: 'P3K1_S_16', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan samenwerken in een multidisciplinair team', crebos: ['27184'] },
+      { id: 'P3K1_S_17', kerntaak: 'P3-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan betrokkenen aansturen en instrueren', crebos: ['27184'] },
+
+      // PROFIEL 27185 (Bewegingsagoog - P4-K1)
+      { id: 'P4K1_S_1', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Werkveld Bewegingsagoog', tekst: 'kan protocollen en richtlijnen toepassen met betrekking tot: gezondheid, hygiëne, veiligheid, calamiteiten, duurzaamheid, kwaliteitszorg, ergonomisch werken, kostenbewust werken', crebos: ['27185'] },
+      { id: 'P4K1_V_1', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Werkveld Bewegingsagoog', tekst: 'heeft brede en specialistische kennis van het werkveld agogiek', crebos: ['27185'] },
+      { id: 'P4K1_V_2', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Werkveld Bewegingsagoog', tekst: 'heeft brede kennis van relevante (zorg)organisaties uit het netwerk van de organisatie', crebos: ['27185'] },
+      { id: 'P4K1_V_3', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Werkveld Bewegingsagoog', tekst: 'heeft brede kennis van trends en ontwikkelingen in het werkveld, zoals (zorg)innovaties', crebos: ['27185'] },
+      { id: 'P4K1_V_4', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Werkveld Bewegingsagoog', tekst: 'heeft brede kennis van begrippen en modellen van anatomie en fysiologie', crebos: ['27185'] },
+
+      { id: 'P4K1_S_2', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Begeleiden en Agogiek', tekst: 'kan motivatie- en begeleidingsmethodieken toepassen', crebos: ['27185'] },
+      { id: 'P4K1_V_5', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft brede en specialistische kennis van agogische begrippen, methodieken en ondersteuningsplannen', crebos: ['27185'] },
+      { id: 'P4K1_V_6', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft brede kennis van bewegingsagogische hulpvragen', crebos: ['27185'] },
+      { id: 'P4K1_V_7', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft brede kennis van begrippen en modellen uit de psychologie gericht op de motivatie, gedragsverandering en (mentale) begeleiding van deelnemers/cliënten', crebos: ['27185'] },
+      { id: 'P4K1_V_8', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft brede kennis van contra-indicaties voor bewegingsagogische interventies', crebos: ['27185'] },
+      { id: 'P4K1_V_9', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft brede en specialistische kennis van bewegingsagogische programma\'s en -strategieën', crebos: ['27185'] },
+      { id: 'P4K1_V_10', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Begeleiden en Agogiek', tekst: 'heeft kennis van groepsprocessen en groepsdynamiek in de bewegingsagogische begeleiding', crebos: ['27185'] },
+      { id: 'P4K1_S_3', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Begeleiden en Agogiek', tekst: 'kan agogische interventies, test- en meetinstrumenten voor bewegingsagogiek toepassen en gesprekstechnieken toepassen', crebos: ['27185'] },
+      { id: 'P4K1_S_4', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Begeleiden en Agogiek', tekst: 'kan observatiemethoden, methodische werkwijze(n) en basis zorgtaken toepassen', crebos: ['27185'] },
+      { id: 'P4K1_S_5', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Begeleiden en Agogiek', tekst: 'kan adviseren over beweging in relatie tot een gezonde leefstijl', crebos: ['27185'] },
+
+      { id: 'P4K1_V_11', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft brede kennis van de kenmerken van een fysiek en sociaal veilige SB-omgeving', crebos: ['27185'] },
+      { id: 'P4K1_S_6', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en mishandeling en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27185'] },
+      { id: 'P4K1_S_7', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ['27185'] },
+
+      { id: 'P4K1_V_12', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Doelgroepen en Ziektebeelden', tekst: 'heeft brede kennis van (inter) culturele verschillen', crebos: ['27185'] },
+      { id: 'P4K1_V_13', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Doelgroepen en Ziektebeelden', tekst: 'heeft brede en specialistische kennis van relevante doelgroepen', crebos: ['27185'] },
+      { id: 'P4K1_V_14', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Doelgroepen en Ziektebeelden', tekst: 'heeft brede en specialistische kennis van veelvoorkomende ziektebeelden of beperkingen', crebos: ['27185'] },
+      { id: 'P4K1_V_15', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Doelgroepen en Ziektebeelden', tekst: 'heeft brede en specialistische kennis van fysieke en mentale belasting van cliënten', crebos: ['27185'] },
+
+      { id: 'P4K1_S_8', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan digitale vaardigheden en communicatieve vaardigheden toepassen', crebos: ['27185'] },
+      { id: 'P4K1_S_9', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen, evaluatievaardigheden en feedbackvaardigheden toepassen', crebos: ['27185'] },
+      { id: 'P4K1_S_10', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan rapportagevaardigheden toepassen (schriftelijk en mondeling)', crebos: ['27185'] },
+      { id: 'P4K1_V_16', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft kennis van de geldende privacywetgeving (AVG) rondom omgang met persoonsgegevens', crebos: ['27185'] },
+      { id: 'P4K1_V_17', kerntaak: 'P4-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft brede kennis van locaties, materialen en middelen voor bewegingsagogiek', crebos: ['27185'] },
+      { id: 'P4K1_S_11', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan samenwerken in een multi- en/of interdisciplinair team', crebos: ['27185'] },
+      { id: 'P4K1_S_12', kerntaak: 'P4-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan betrokkenen aansturen en instrueren', crebos: ['27185'] },
+
+      // PROFIEL 27186 (Trainer-coach / Instructeur - P5-K1)
+      { id: 'P5K1_V_1', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Werkveld Trainer-coach/Instructeur', tekst: 'heeft brede en specialistische kennis van het werkveld van trainer-coach/instructeur', crebos: ['27186'] },
+      { id: 'P5K1_V_2', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Werkveld Trainer-coach/Instructeur', tekst: 'heeft specialistische kennis van trends en ontwikkelingen in sport- en bewegingsactiviteiten in relatie tot de werkzaamheden', crebos: ['27186'] },
+
+      { id: 'P5K1_V_3', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft specialistische kennis van actuele (spel) regels en wedstrijdreglementen van de sport', crebos: ['27186'] },
+      { id: 'P5K1_V_4', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede en specialistische kennis van het opstellen en uitvoeren van SB-programma\'s', crebos: ['27186'] },
+      { id: 'P5K1_V_5', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede en specialistische kennis van materiaal, voeding en hygiëne in relatie tot sporten', crebos: ['27186'] },
+      { id: 'P5K1_V_6', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede en specialistische kennis over sporttechniek en -tactiek', crebos: ['27186'] },
+      { id: 'P5K1_V_7', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede kennis van begrippen en modellen van anatomie en fysiologie', crebos: ['27186'] },
+      { id: 'P5K1_S_1', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Sport en bewegen', tekst: 'kan adviseren over (sport) voeding', crebos: ['27186'] },
+
+      { id: 'P5K1_S_2', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Coachen', tekst: 'kan motivatie- en begeleidingsmethodieken toepassen', crebos: ['27186'] },
+      { id: 'P5K1_S_3', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Coachen', tekst: 'kan test- en meetinstrumenten gebruiken om de sportvaardigheid te beoordelen', crebos: ['27186'] },
+      { id: 'P5K1_V_8', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Coachen', tekst: 'heeft brede en specialistische kennis van fysieke en mentale belasting van sporters/deelnemers', crebos: ['27186'] },
+      { id: 'P5K1_V_9', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Coachen', tekst: 'heeft brede kennis van sportpsychologische aspecten gericht op de (mentale) begeleiding van sporters/deelnemers', crebos: ['27186'] },
+      { id: 'P5K1_V_10', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Coachen', tekst: 'heeft kennis van diverse methoden om het vaardigheidsniveau van een deelnemer te beoordelen', crebos: ['27186'] },
+      { id: 'P5K1_V_11', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Coachen', tekst: 'heeft kennis van observatiemethodiken in relatie tot de werkzaamheden', crebos: ['27186'] },
+      { id: 'P5K1_S_4', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Coachen', tekst: 'kan (opnames van) trainingen en wedstrijden/activiteiten observeren en analyseren', crebos: ['27186'] },
+      { id: 'P5K1_S_5', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Coachen', tekst: 'kan een bewegingsanalyse maken', crebos: ['27186'] },
+
+      { id: 'P5K1_V_12', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft brede en specialistische kennis van didactiek van relevante sport- en bewegingsactiviteiten', crebos: ['27186'] },
+      { id: 'P5K1_V_13', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Pedagogiek en didactiek', tekst: 'heeft specialistische kennis van trainingsleer', crebos: ['27186'] },
+
+      { id: 'P5K1_V_14', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Fysieke en sociale veiligheid', tekst: 'heeft kennis van de kenmerken van een fysiek en sociaal veilige SB-omgeving', crebos: ['27186'] },
+      { id: 'P5K1_S_6', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan signalen van sociale problematiek herkennen waaronder: huiselijk geweld, seksueel misbruik en kindermishandeling en daarop actie ondernemen volgens wet- en regelgeving en het beleid/protocol van de organisatie', crebos: ['27186'] },
+      { id: 'P5K1_S_7', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan conflictbeheersingsmethoden toepassen', crebos: ['27186'] },
+      { id: 'P5K1_S_8', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Fysieke en sociale veiligheid', tekst: 'kan een fysiek en sociaal veilig sport- en beweegklimaat creëren, bevorderen en bewaken', crebos: ['27186'] },
+
+      { id: 'P5K1_S_9', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan organisatievaardigheden toepassen', crebos: ['27186'] },
+      { id: 'P5K1_S_10', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan administratieve vaardigheden toepassen', crebos: ['27186'] },
+      { id: 'P5K1_S_11', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen', crebos: ['27186'] },
+      { id: 'P5K1_S_12', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan evaluatievaardigheden toepassen', crebos: ['27186'] },
+      { id: 'P5K1_S_13', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan feedbackvaardigheden toepassen', crebos: ['27186'] },
+      { id: 'P5K1_V_15', kerntaak: 'P5-K1', type: 'Vakkennis', cat: 'Organiseren, samenwerken en communiceren', tekst: 'heeft kennis van de geldende privacywetgeving (AVG) rondom omgang met persoonsgegevens', crebos: ['27186'] },
+      { id: 'P5K1_S_14', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met deelnemers, (assistent)trainers, instructeurs of betrokkenen', crebos: ['27186'] },
+      { id: 'P5K1_S_15', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan betrokkenen aansturen en instrueren', crebos: ['27186'] },
+      { id: 'P5K1_S_16', kerntaak: 'P5-K1', type: 'Vaardigheid', cat: 'Organiseren, samenwerken en communiceren', tekst: 'kan plannen en organiseren', crebos: ['27186'] },
+
+      // PROFIEL PROJECTMATIG KERNTACK (P2-K2 / P3-K2 / P4-K2 / P5-K2)
+      { id: 'PXK2_V_1', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Algemeen', tekst: 'heeft brede en specialistische kennis van relevante wet- en regelgeving in relatie tot het SB-(deel) project', crebos: NIV4_CREBOS },
+      
+      { id: 'PXK2_V_2', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede kennis van SB-locaties, materialen en middelen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_V_3', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft kennis van infrastructuren van relevante SB-organisaties en hun doelstellingen voor het SB-(deel)project', crebos: NIV4_CREBOS },
+      { id: 'PXK2_V_4', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede en specialistische kennis van relevante doelgroepen in het werkveld', crebos: NIV4_CREBOS },
+      { id: 'PXK2_V_5', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft brede en specialistische kennis van het werkveld Sport en Bewegen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_V_6', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Sport en bewegen', tekst: 'heeft specialistische kennis van trends, innovaties en ontwikkelingen in relatie tot het SB-(deel) project', crebos: NIV4_CREBOS },
+
+      { id: 'PXK2_S_1', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan samenwerken met projectleden en betrokkenen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_2', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan communicatieve vaardigheden toepassen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_3', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan communicatiemiddelen inzetten voor promotie, zoals social media', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_4', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan informatie visueel vormgeven', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_5', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan gesprekstechnieken toepassen in contact met projectleden en betrokkenen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_6', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan presentatievaardigheden toepassen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_7', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan reflecteren op diens handelen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_8', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan evaluatievaardigheden toepassen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_9', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Samenwerken en communiceren', tekst: 'kan feedbackvaardigheden toepassen', crebos: NIV4_CREBOS },
+
+      { id: 'PXK2_V_7', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Projectmatig werken', tekst: 'heeft brede en specialistische kennis van de kenmerken en fasen van projecten', crebos: NIV4_CREBOS },
+      { id: 'PXK2_V_8', kerntaak: 'Projectmatig (K2)', type: 'Vakkennis', cat: 'Projectmatig werken', tekst: 'heeft kennis van begroten en budgetteren van activiteiten en projecten', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_10', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan projectmatig werken', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_11', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan coördinerende vaardigheden toepassen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_12', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan projectleden en betrokkenen aansturen en instrueren', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_13', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan rapportagevaardigheden toepassen (schriftelijk en mondeling)', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_14', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan onderzoeksvaardigheden toepassen bij het verzamelen en analyseren van informatie', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_15', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan financieel-administratieve vaardigheden toepassen', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_16', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan keuzes onderbouwen en verantwoorden', crebos: NIV4_CREBOS },
+      { id: 'PXK2_S_17', kerntaak: 'Projectmatig (K2)', type: 'Vaardigheid', cat: 'Projectmatig werken', tekst: 'kan draagvlak creëren en behouden', crebos: NIV4_CREBOS }
+    ];
+
+    const DEFAULT_YEARS = [
+      "leerjaar 1 niv 2",
+      "leerjaar 2 niv 2",
+      "basisleerjaar 1 niv 3",
+      "basisleerjaar 2 niv 3",
+      "basisleerjaar 3 niv 3",
+      "basis leerjaar 1 niv 4",
+      "basisleerjaar 2 niv 4",
+      "profielleerjaar 1",
+      "profielleerjaar 2"
+    ];
+
+    let curriculumData = {};
+    let activeViewMode = 'single';
+    let selectedCompareYears = [];
+    let isCurriculumLocked = true;
+
+    function getInitialNorms(yearName) {
+      const lower = yearName.toLowerCase();
+      if (lower.includes('niv 2')) {
+        return { bot: 600, bpv: 300, flex: 40 };
+      }
+      if (lower.includes('1 niv') || lower.includes('1er leerjaar') || lower.includes('leerjaar 1')) {
+        return { bot: 700, bpv: 250, flex: 50 };
+      }
+      return { bot: 550, bpv: 400, flex: 50 };
+    }
+
+    function initApp() {
+      const savedData = localStorage.getItem('curriculum_data_store_v8');
+      const savedLock = localStorage.getItem('curriculum_lock_state');
+
+      if (savedData) {
+        try { curriculumData = JSON.parse(savedData); } catch(e) { initDefaultData(); }
+      } else {
+        initDefaultData();
+      }
+
+      if (savedLock !== null) isCurriculumLocked = (savedLock === 'true');
+
+      selectedCompareYears = Object.keys(curriculumData);
+
+      populateYearSelect();
+      renderCompareCheckboxes();
+      loadCurrentYearData();
+      applyLockState();
+    }
+
+    function initDefaultData() {
+      curriculumData = {};
+      DEFAULT_YEARS.forEach(year => {
+        let crebo = '27183';
+        if (year.includes('niv 2')) crebo = '25414';
+        else if (year.includes('niv 3')) crebo = '27182';
+
+        curriculumData[year] = {
+          crebo: crebo,
+          norms: getInitialNorms(year),
+          subjects: []
+        };
+      });
+    }
+
+    function saveData() {
+      localStorage.setItem('curriculum_data_store_v8', JSON.stringify(curriculumData));
+      localStorage.setItem('curriculum_lock_state', isCurriculumLocked);
+    }
+
+    function toggleGlobalLock() {
+      if (isCurriculumLocked) {
+        const pass = prompt('Voer het wachtwoord in om het geborgde curriculum te ontgrendelen:');
+        if (pass === 'mon1234') {
+          isCurriculumLocked = false;
+          saveData();
+          applyLockState();
+        } else if (pass !== null) {
+          alert('Onjuist wachtwoord!');
+        }
+      } else {
+        isCurriculumLocked = true;
+        saveData();
+        applyLockState();
+      }
+    }
+
+    function applyLockState() {
+      const lockBtnText = document.getElementById('globalLockText');
+      const lockBtnIcon = document.getElementById('globalLockIcon');
+      const badge = document.getElementById('borgingStatusBadge');
+      const normLockIcon = document.getElementById('normLockIcon');
+
+      document.querySelectorAll('.lock-disable').forEach(el => {
+        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+          el.disabled = isCurriculumLocked;
+        } else {
+          if (isCurriculumLocked) el.classList.add('opacity-50', 'pointer-events-none');
+          else el.classList.remove('opacity-50', 'pointer-events-none');
+        }
+      });
+
+      if (isCurriculumLocked) {
+        lockBtnText.textContent = 'Ontgrendelen (Bewerken)';
+        lockBtnIcon.className = 'fa-solid fa-lock';
+        badge.className = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full font-bold flex items-center gap-1.5";
+        badge.innerHTML = '<i class="fa-solid fa-shield-halved text-emerald-400"></i> <span>Geborgd & Vastgezet</span>';
+        normLockIcon.className = 'fa-solid fa-lock text-slate-400 text-lg';
+      } else {
+        lockBtnText.textContent = 'Borgen & Vergrendelen';
+        lockBtnIcon.className = 'fa-solid fa-lock-open';
+        badge.className = "bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full font-bold flex items-center gap-1.5";
+        badge.innerHTML = '<i class="fa-solid fa-lock-open text-amber-400"></i> <span>Bewerkmodus Actief</span>';
+        normLockIcon.className = 'fa-solid fa-lock-open text-emerald-600 text-lg';
+      }
+    }
+
+    function switchViewMode(mode) {
+      activeViewMode = mode;
+      document.getElementById('singleYearView').classList.add('hidden');
+      document.getElementById('compareView').classList.add('hidden');
+      document.getElementById('matrixView').classList.add('hidden');
+
+      document.getElementById('tabSingleBtn').className = "bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+      document.getElementById('tabCompareBtn').className = "bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+      document.getElementById('tabMatrixBtn').className = "bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+
+      if (mode === 'single') {
+        document.getElementById('singleYearView').classList.remove('hidden');
+        document.getElementById('tabSingleBtn').className = "bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+        renderDashboard();
+      } else if (mode === 'compare') {
+        document.getElementById('compareView').classList.remove('hidden');
+        document.getElementById('tabCompareBtn').className = "bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+        renderCompareView();
+      } else if (mode === 'matrix') {
+        document.getElementById('matrixView').classList.remove('hidden');
+        document.getElementById('tabMatrixBtn').className = "bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2";
+        renderMatrixView();
+      }
+    }
+
+    function populateYearSelect() {
+      const select = document.getElementById('yearSelect');
+      select.innerHTML = '';
+      Object.keys(curriculumData).forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        select.appendChild(option);
+      });
+    }
+
+    function renderCompareCheckboxes() {
+      const container = document.getElementById('compareYearCheckboxes');
+      container.innerHTML = '';
+
+      Object.keys(curriculumData).forEach(year => {
+        const isChecked = selectedCompareYears.includes(year);
+        const label = document.createElement('label');
+        label.className = `flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition ${isChecked ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-600'}`;
+        label.innerHTML = `
+          <input type="checkbox" value="${year}" ${isChecked ? 'checked' : ''} onchange="toggleCompareYear('${year}')" class="rounded text-indigo-600 focus:ring-indigo-500">
+          <span>${year}</span>
+        `;
+        container.appendChild(label);
+      });
+    }
+
+    function toggleCompareYear(year) {
+      if (selectedCompareYears.includes(year)) selectedCompareYears = selectedCompareYears.filter(y => y !== year);
+      else selectedCompareYears.push(year);
+      renderCompareCheckboxes();
+      renderCompareView();
+    }
+
+    function selectAllYearsForCompare(select) {
+      selectedCompareYears = select ? Object.keys(curriculumData) : [];
+      renderCompareCheckboxes();
+      renderCompareView();
+    }
+
+    function addNewYear() {
+      if (isCurriculumLocked) return;
+      const input = document.getElementById('newYearInput');
+      const yearName = input.value.trim();
+      if (!yearName) return;
+
+      if (curriculumData[yearName]) {
+        alert('Dit leerjaar bestaat al!');
+        return;
+      }
+
+      let defaultCrebo = '27183';
+      if (yearName.toLowerCase().includes('niv 2')) defaultCrebo = '25414';
+      else if (yearName.toLowerCase().includes('niv 3')) defaultCrebo = '27182';
+
+      curriculumData[yearName] = {
+        crebo: defaultCrebo,
+        norms: getInitialNorms(yearName),
+        subjects: []
+      };
+
+      selectedCompareYears.push(yearName);
+      input.value = '';
+      saveData();
+      populateYearSelect();
+      renderCompareCheckboxes();
+      document.getElementById('yearSelect').value = yearName;
+      loadCurrentYearData();
+    }
+
+    function switchYear() { loadCurrentYearData(); }
+
+    function updateCreboForYear() {
+      if (isCurriculumLocked) return;
+      const currentYear = document.getElementById('yearSelect').value;
+      curriculumData[currentYear].crebo = document.getElementById('creboSelect').value;
+      saveData();
+      renderCompetenceCheckboxes();
+      renderDashboard();
+    }
+
+    function loadCurrentYearData() {
+      const currentYear = document.getElementById('yearSelect').value;
+      const data = curriculumData[currentYear] || { crebo: '27183', norms: { bot: 700, bpv: 250, flex: 50 }, subjects: [] };
+
+      document.getElementById('pdfHeaderTitle').textContent = `Curriculum Dashboard - ${currentYear}`;
+      document.getElementById('creboSelect').value = data.crebo || '27183';
+      document.getElementById('normBOT').value = data.norms.bot;
+      document.getElementById('normBPV').value = data.norms.bpv;
+      document.getElementById('normFlex').value = data.norms.flex;
+
+      renderCompetenceCheckboxes();
+      renderDashboard();
+    }
+
+    function renderCompetenceCheckboxes() {
+      const currentYear = document.getElementById('yearSelect').value;
+      const crebo = curriculumData[currentYear].crebo || '27183';
+      const container = document.getElementById('competenceCheckboxesList');
+      const wrapper = document.getElementById('competenceAccordionWrapper');
+      container.innerHTML = '';
+
+      // Niveau 2 (Crebo 25414) heeft geen vakkennis/vaardigheden koppelingsverplichting
+      if (crebo === '25414') {
+        wrapper.classList.add('hidden');
+        return;
+      } else {
+        wrapper.classList.remove('hidden');
+      }
+
+      const filteredEisen = KWALIFICATIEDOSSIER_EISEN.filter(e => e.crebos.includes(crebo));
+
+      const grouped = {};
+      filteredEisen.forEach(e => {
+        if (!grouped[e.kerntaak]) grouped[e.kerntaak] = {};
+        if (!grouped[e.kerntaak][e.cat]) grouped[e.kerntaak][e.cat] = [];
+        grouped[e.kerntaak][e.cat].push(e);
+      });
+
+      let kerntaakIdx = 0;
+      Object.keys(grouped).forEach(kerntaak => {
+        kerntaakIdx++;
+        const kerntaakBox = document.createElement('div');
+        kerntaakBox.className = 'border border-indigo-200 rounded-lg overflow-hidden mb-2 bg-white';
+
+        let categoriesHtml = '';
+        Object.keys(grouped[kerntaak]).forEach(cat => {
+          const items = grouped[kerntaak][cat];
+          let itemsHtml = items.map(e => `
+            <label class="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer p-1.5 rounded hover:bg-indigo-50/60 transition competence-item" data-text="${e.tekst.toLowerCase()} ${e.cat.toLowerCase()}">
+              <input type="checkbox" name="subjCompetence" value="${e.id}" class="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 lock-disable">
+              <div>
+                <span class="font-semibold text-slate-900">${e.tekst}</span>
+                <span class="text-[10px] text-slate-400 font-normal"> (${e.type})</span>
+              </div>
+            </label>
+          `).join('');
+
+          categoriesHtml += `
+            <div class="p-2 border-b last:border-b-0 bg-slate-50/50">
+              <div class="font-semibold text-[11px] text-indigo-900 mb-1 flex justify-between items-center">
+                <span>${cat}</span>
+                <span class="text-[10px] text-slate-400 font-mono">(${items.length})</span>
+              </div>
+              <div class="space-y-1">
+                ${itemsHtml}
+              </div>
+            </div>
+          `;
+        });
+
+        kerntaakBox.innerHTML = `
+          <button type="button" onclick="toggleSubAccordion('kt_${kerntaakIdx}')" class="w-full bg-indigo-50 hover:bg-indigo-100/80 p-2 text-left text-xs font-bold text-indigo-950 flex justify-between items-center transition">
+            <span><i class="fa-solid fa-folder text-indigo-600 mr-1.5"></i> ${kerntaak}</span>
+            <i id="ktIcon_kt_${kerntaakIdx}" class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
+          </button>
+          <div id="kt_${kerntaakIdx}" class="hidden">
+            ${categoriesHtml}
+          </div>
+        `;
+
+        container.appendChild(kerntaakBox);
+      });
+
+      applyLockState();
+    }
+
+    function toggleCompetenceAccordion() {
+      const content = document.getElementById('competenceAccordionContent');
+      const icon = document.getElementById('accordionIcon');
+      content.classList.toggle('hidden');
+      icon.classList.toggle('fa-chevron-down');
+      icon.classList.toggle('fa-chevron-up');
+    }
+
+    function toggleSubAccordion(id) {
+      const elem = document.getElementById(id);
+      const icon = document.getElementById(`ktIcon_${id}`);
+      elem.classList.toggle('hidden');
+      if (icon) {
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+      }
+    }
+
+    function toggleAllSubAccordions() {
+      const container = document.getElementById('competenceCheckboxesList');
+      const subContents = container.querySelectorAll('[id^="kt_"]');
+      let anyHidden = false;
+
+      subContents.forEach(el => {
+        if (el.classList.contains('hidden')) anyHidden = true;
+      });
+
+      subContents.forEach(el => {
+        const id = el.id;
+        const icon = document.getElementById(`ktIcon_${id}`);
+        if (anyHidden) {
+          el.classList.remove('hidden');
+          if (icon) { icon.classList.remove('fa-chevron-down'); icon.classList.add('fa-chevron-up'); }
+        } else {
+          el.classList.add('hidden');
+          if (icon) { icon.classList.remove('fa-chevron-up'); icon.classList.add('fa-chevron-down'); }
+        }
+      });
+    }
+
+    function filterCompetenceCheckboxes() {
+      const search = document.getElementById('searchCompetenceInput').value.toLowerCase();
+      const items = document.querySelectorAll('.competence-item');
+
+      items.forEach(item => {
+        const text = item.getAttribute('data-text') || '';
+        if (text.includes(search)) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+    }
+
+    function updateNorms() {
+      if (isCurriculumLocked) return;
+      const currentYear = document.getElementById('yearSelect').value;
+      curriculumData[currentYear].norms = {
+        bot: parseFloat(document.getElementById('normBOT').value) || 0,
+        bpv: parseFloat(document.getElementById('normBPV').value) || 0,
+        flex: parseFloat(document.getElementById('normFlex').value) || 0
+      };
+      saveData();
+      renderDashboard();
+    }
+
+    function handleCategoryChange() {
+      const category = document.getElementById('subjCategory').value;
+      const durationSelect = document.getElementById('subjDuration');
+      if (category === 'BPV') durationSelect.value = '40';
+      else if (durationSelect.value === '40') durationSelect.value = '32';
+      recalculateHours('duration');
+    }
+
+    function recalculateHours(source) {
+      const weeks = parseInt(document.getElementById('subjDuration').value) || 32;
+      const hoursWeekInput = document.getElementById('subjHoursWeek');
+      const totalHoursInput = document.getElementById('subjTotalHours');
+
+      let hoursWeek = parseFloat(hoursWeekInput.value) || 0;
+      let totalHours = parseFloat(totalHoursInput.value) || 0;
+
+      if (source === 'week' || source === 'duration') {
+        totalHours = Math.round(hoursWeek * weeks * 10) / 10;
+        totalHoursInput.value = totalHours;
+      } else if (source === 'total') {
+        hoursWeek = Math.round((totalHours / weeks) * 10) / 10;
+        hoursWeekInput.value = hoursWeek;
+      }
+    }
+
+    function addSubject(e) {
+      e.preventDefault();
+      if (isCurriculumLocked) {
+        alert('Het curriculum is geborgd. Ontgrendel eerst de applicatie.');
+        return;
+      }
+
+      const currentYear = document.getElementById('yearSelect').value;
+      const name = document.getElementById('subjName').value.trim();
+      const category = document.getElementById('subjCategory').value;
+      const block = document.getElementById('subjBlock').value;
+      const weeks = parseInt(document.getElementById('subjDuration').value);
+      const hoursWeek = parseFloat(document.getElementById('subjHoursWeek').value) || 0;
+      const totalHours = parseFloat(document.getElementById('subjTotalHours').value) || (hoursWeek * weeks);
+      const content = document.getElementById('subjContent').value.trim();
+
+      const selectedCompetences = Array.from(document.querySelectorAll('input[name="subjCompetence"]:checked')).map(cb => cb.value);
+
+      const newSubject = {
+        id: Date.now(),
+        name,
+        category,
+        block,
+        hoursWeek,
+        weeks,
+        totalHours,
+        content,
+        competences: selectedCompetences
+      };
+
+      curriculumData[currentYear].subjects.push(newSubject);
+      saveData();
+
+      document.getElementById('subjName').value = '';
+      document.getElementById('subjContent').value = '';
+      document.querySelectorAll('input[name="subjCompetence"]').forEach(cb => cb.checked = false);
+
+      renderDashboard();
+    }
+
+    function renderDashboard() {
+      const currentYear = document.getElementById('yearSelect').value;
+      const data = curriculumData[currentYear] || { crebo: '27183', norms: { bot: 700, bpv: 250, flex: 50 }, subjects: [] };
+
+      const stackedBOT = document.getElementById('stackedBOTBar');
+      const stackedBPV = document.getElementById('stackedBPVBar');
+      const stackedFlex = document.getElementById('stackedFlexBar');
+
+      stackedBOT.innerHTML = ''; stackedBPV.innerHTML = ''; stackedFlex.innerHTML = '';
+
+      const b1Canvas = document.getElementById('block1Canvas');
+      const b2Canvas = document.getElementById('block2Canvas');
+      const b3Canvas = document.getElementById('block3Canvas');
+      const b4Canvas = document.getElementById('block4Canvas');
+      const multiCanvas = document.getElementById('multiBlockCanvas');
+
+      b1Canvas.innerHTML = ''; b2Canvas.innerHTML = ''; b3Canvas.innerHTML = ''; b4Canvas.innerHTML = ''; multiCanvas.innerHTML = '';
+
+      const pdfList = document.getElementById('pdfContentList');
+      pdfList.innerHTML = '';
+
+      let totalBOT = 0, totalBPV = 0, totalFlex = 0;
+      let b1BOTSum = 0, b2BOTSum = 0, b3BOTSum = 0, b4BOTSum = 0;
+
+      data.subjects.forEach(subject => {
+        const isBPV = subject.category === 'BPV';
+        const isFlex = subject.category === 'Flexibel';
+        const isBOT = !isBPV && !isFlex;
+
+        if (isBPV) totalBPV += subject.totalHours;
+        else if (isFlex) totalFlex += subject.totalHours;
+        else totalBOT += subject.totalHours;
+
+        if (isBOT) {
+          if (subject.block === 'Blok 1') b1BOTSum += subject.totalHours;
+          else if (subject.block === 'Blok 2') b2BOTSum += subject.totalHours;
+          else if (subject.block === 'Blok 3') b3BOTSum += subject.totalHours;
+          else if (subject.block === 'Blok 4') b4BOTSum += subject.totalHours;
+          else if (subject.block === 'Halfjaar 1') { b1BOTSum += subject.totalHours / 2; b2BOTSum += subject.totalHours / 2; }
+          else if (subject.block === 'Halfjaar 2') { b3BOTSum += subject.totalHours / 2; b4BOTSum += subject.totalHours / 2; }
+          else if (subject.block === 'Heel Jaar') { 
+            const q = subject.totalHours / 4; 
+            b1BOTSum += q; b2BOTSum += q; b3BOTSum += q; b4BOTSum += q; 
+          }
+        }
+
+        // Unieke kleurstijlen voor gesplitste categorieën
+        let bgClass = 'bg-slate-500 text-white';
+        switch(subject.category) {
+          case 'Generiek': bgClass = 'bg-indigo-500 text-white'; break;
+          case 'Beroepsspecifiek': bgClass = 'bg-sky-500 text-white'; break;
+          case 'Profiel': bgClass = 'bg-violet-600 text-white'; break;
+          case 'Project': bgClass = 'bg-purple-500 text-white'; break;
+          case 'BPV': bgClass = 'bg-emerald-500 text-white'; break;
+          case 'Flexibel': bgClass = 'bg-amber-500 text-white'; break;
+        }
+
+        let normTarget = isBPV ? data.norms.bpv : (isFlex ? data.norms.flex : data.norms.bot);
+        const percOfNorm = normTarget > 0 ? (subject.totalHours / normTarget) * 100 : 0;
+        
+        const stackedItem = document.createElement('div');
+        stackedItem.className = `${bgClass} p-1.5 rounded text-[11px] flex justify-between items-center cursor-pointer hover:opacity-90 font-medium`;
+        stackedItem.style.minHeight = `${Math.max(26, percOfNorm * 1.8)}px`;
+        stackedItem.onclick = () => openModal(subject);
+        stackedItem.innerHTML = `
+          <span class="truncate font-semibold">${subject.name} (${subject.block})</span>
+          <span class="font-mono text-[10px] bg-black/20 px-1 py-0.5 rounded whitespace-nowrap ml-1">${subject.totalHours}u</span>
+        `;
+
+        if (isBPV) stackedBPV.appendChild(stackedItem);
+        else if (isFlex) stackedFlex.appendChild(stackedItem);
+        else stackedBOT.appendChild(stackedItem);
+
+        const blockBadge = document.createElement('div');
+        blockBadge.className = `${bgClass} p-2 rounded border shadow-xs text-xs cursor-pointer hover:opacity-90 flex justify-between items-center`;
+        blockBadge.onclick = () => openModal(subject);
+        blockBadge.innerHTML = `
+          <div class="truncate">
+            <div class="font-bold truncate">${subject.name}</div>
+            <div class="text-[10px] opacity-90">${subject.category}</div>
+          </div>
+          <div class="font-mono text-xs font-bold pl-1 whitespace-nowrap">${subject.totalHours}u</div>
+        `;
+
+        if (subject.block === 'Blok 1') b1Canvas.appendChild(blockBadge);
+        else if (subject.block === 'Blok 2') b2Canvas.appendChild(blockBadge);
+        else if (subject.block === 'Blok 3') b3Canvas.appendChild(blockBadge);
+        else if (subject.block === 'Blok 4') b4Canvas.appendChild(blockBadge);
+        else multiCanvas.appendChild(blockBadge);
+
+        let compBadges = '';
+        if (subject.competences && subject.competences.length > 0) {
+          compBadges = subject.competences.map(cid => {
+            const match = KWALIFICATIEDOSSIER_EISEN.find(e => e.id === cid);
+            return match ? `<span class="bg-indigo-100 text-indigo-900 text-[9px] px-1.5 py-0.5 rounded border border-indigo-200">[${match.kerntaak}] ${match.tekst}</span>` : '';
+          }).join(' ');
+        }
+
+        const contentCard = document.createElement('div');
+        contentCard.className = 'pdf-avoid-break bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs space-y-1.5';
+        contentCard.innerHTML = `
+          <div class="flex justify-between font-bold text-slate-800 border-b pb-1">
+            <span>${subject.name} <span class="font-normal text-slate-500">(${subject.category})</span></span>
+            <span class="font-mono text-indigo-700">${subject.totalHours} Uur • ${subject.block}</span>
+          </div>
+          <p class="text-slate-700 italic whitespace-pre-wrap text-[11px]">${subject.content || 'Geen inhoudsomschrijving.'}</p>
+          ${compBadges ? `<div class="pt-1 flex flex-wrap gap-1 border-t mt-1">${compBadges}</div>` : ''}
+        `;
+        pdfList.appendChild(contentCard);
+      });
+
+      document.getElementById('botHeaderStatus').textContent = `${Math.round(totalBOT)} / ${data.norms.bot}u`;
+      document.getElementById('bpvHeaderStatus').textContent = `${Math.round(totalBPV)} / ${data.norms.bpv}u`;
+      document.getElementById('flexHeaderStatus').textContent = `${Math.round(totalFlex)} / ${data.norms.flex}u`;
+
+      updateFooterStatus('botFooterText', totalBOT, data.norms.bot);
+      updateFooterStatus('bpvFooterText', totalBPV, data.norms.bpv);
+      updateFooterStatus('flexFooterText', totalFlex, data.norms.flex);
+
+      document.getElementById('b1BOT').textContent = `${Math.round(b1BOTSum)}u BOT`;
+      document.getElementById('b2BOT').textContent = `${Math.round(b2BOTSum)}u BOT`;
+      document.getElementById('b3BOT').textContent = `${Math.round(b3BOTSum)}u BOT`;
+      document.getElementById('b4BOT').textContent = `${Math.round(b4BOTSum)}u BOT`;
+
+      document.getElementById('pdfHeaderMeta').innerHTML = `
+        <div>Crebo: <strong>${data.crebo || '27183'}</strong> • Totaal: <strong>${Math.round(totalBOT + totalBPV + totalFlex)}u</strong></div>
+      `;
+    }
+
+    // WEERGAVE 2: VOLLEDIG CURRICULUM CREBO
+    function renderCompareView() {
+      const container = document.getElementById('compareColumnsContainer');
+      container.innerHTML = '';
+      let progBOTSum = 0, progBPVSum = 0, progFlexSum = 0;
+
+      document.getElementById('compareSelectedYearsCountText').textContent = `Selectie: ${selectedCompareYears.length} leerjaar/leerjaren gekozen`;
+
+      selectedCompareYears.forEach(year => {
+        const data = curriculumData[year];
+        if (!data) return;
+
+        let yearBOT = 0, yearBPV = 0, yearFlex = 0;
+        data.subjects.forEach(s => {
+          if (s.category === 'BPV') yearBPV += s.totalHours;
+          else if (s.category === 'Flexibel') yearFlex += s.totalHours;
+          else yearBOT += s.totalHours;
+        });
+
+        progBOTSum += yearBOT; progBPVSum += yearBPV; progFlexSum += yearFlex;
+
+        let subjectsHtml = '';
+        if (data.subjects && data.subjects.length > 0) {
+          subjectsHtml = data.subjects.map(subj => {
+            let catColor = 'border-l-4 border-indigo-500 bg-white';
+            if (subj.category === 'BPV') catColor = 'border-l-4 border-emerald-500 bg-white';
+            else if (subj.category === 'Flexibel') catColor = 'border-l-4 border-amber-500 bg-white';
+            else if (subj.category === 'Beroepsspecifiek') catColor = 'border-l-4 border-sky-500 bg-white';
+            else if (subj.category === 'Profiel') catColor = 'border-l-4 border-violet-600 bg-white';
+            else if (subj.category === 'Project') catColor = 'border-l-4 border-purple-500 bg-white';
+
+            return `
+              <div class="${catColor} p-2 rounded shadow-xs border text-xs space-y-1">
+                <div class="flex justify-between items-start">
+                  <span class="font-bold text-slate-800 leading-tight">${subj.name}</span>
+                  <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap ml-1">${subj.totalHours}u</span>
+                </div>
+                <div class="flex justify-between items-center text-[10px] text-slate-500">
+                  <span>${subj.category}</span>
+                  <span class="font-medium text-indigo-900">${subj.block}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          subjectsHtml = `<div class="p-3 text-center text-xs text-slate-400 italic bg-white rounded border">Nog geen vakken toegevoegd.</div>`;
+        }
+
+        const yearCard = document.createElement('div');
+        yearCard.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 pdf-avoid-break shadow-sm';
+        yearCard.innerHTML = `
+          <div class="border-b pb-2 flex justify-between items-center">
+            <div>
+              <h4 class="font-bold text-sm text-slate-900 capitalize">${year}</h4>
+              <span class="text-[10px] bg-indigo-100 text-indigo-900 px-1.5 py-0.5 rounded font-mono font-semibold">Crebo ${data.crebo || '27183'}</span>
+            </div>
+            <div class="text-right text-[11px] font-mono font-bold text-indigo-900">
+              ${Math.round(yearBOT + yearBPV + yearFlex)}u Totaal
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-1 text-[10px] font-mono bg-indigo-50/50 p-2 rounded border border-indigo-100 text-center">
+            <div><span class="block text-slate-400">BOT</span><span class="font-bold text-indigo-900">${Math.round(yearBOT)}/${data.norms.bot}u</span></div>
+            <div><span class="block text-slate-400">BPV</span><span class="font-bold text-emerald-800">${Math.round(yearBPV)}/${data.norms.bpv}u</span></div>
+            <div><span class="block text-slate-400">FLEX</span><span class="font-bold text-amber-800">${Math.round(yearFlex)}/${data.norms.flex}u</span></div>
+          </div>
+
+          <div class="space-y-2 pt-1">
+            <div class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex justify-between">
+              <span>Opgenomen Vakken</span>
+              <span class="text-slate-400">(${data.subjects.length})</span>
+            </div>
+            <div class="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+              ${subjectsHtml}
+            </div>
+          </div>
+        `;
+        container.appendChild(yearCard);
+      });
+
+      document.getElementById('totalProgBOT').textContent = `${Math.round(progBOTSum)} u`;
+      document.getElementById('totalProgBPV').textContent = `${Math.round(progBPVSum)} u`;
+      document.getElementById('totalProgFlex').textContent = `${Math.round(progFlexSum)} u`;
+      document.getElementById('totalProgAll').textContent = `${Math.round(progBOTSum + progBPVSum + progFlexSum)} u`;
+    }
+
+    // WEERGAVE 3: DEKKINGSMATRIX
+    function renderMatrixView() {
+      const tbody = document.getElementById('matrixTableBody');
+      const filterCrebo = document.getElementById('matrixCreboFilter').value;
+      tbody.innerHTML = '';
+
+      // Geen matrix voor niveau 2 (Crebo 25414)
+      if (filterCrebo === '25414') {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="p-8 text-center text-slate-500 italic bg-slate-50">
+              <i class="fa-solid fa-info-circle text-2xl text-indigo-400 block mb-2"></i>
+              Voor Niveau 2 (Crebo 25414) hoeven geen specifieke vakkennis- en vaardigheidseisen in de dekkingsmatrix te staan.
+            </td>
+          </tr>
+        `;
+        document.getElementById('matrixTotalCoverageText').textContent = `Niveau 2 Vrijgesteld van Dekkingsmatrix`;
+        return;
+      }
+
+      // Filter relevante eisen op basis van het gekozen niveau/Crebo
+      let filteredEisen = KWALIFICATIEDOSSIER_EISEN.filter(e => {
+        if (filterCrebo === 'all') {
+          return true;
+        } else if (filterCrebo === '27182') { // Niveau 3
+          return e.kerntaak === 'B1-K1' || e.kerntaak === 'B1-K2';
+        } else if (NIV4_CREBOS.includes(filterCrebo)) { // Niveau 4
+          if (e.kerntaak === 'B1-K1' || e.kerntaak === 'B1-K2') return true;
+          if (e.kerntaak === 'Projectmatig (K2)') return true;
+          if (filterCrebo === '27183' && e.kerntaak === 'P2-K1') return true;
+          if (filterCrebo === '27184' && e.kerntaak === 'P3-K1') return true;
+          if (filterCrebo === '27185' && e.kerntaak === 'P4-K1') return true;
+          if (filterCrebo === '27186' && e.kerntaak === 'P5-K1') return true;
+          return false;
+        }
+        return true;
+      });
+
+      let coveredCount = 0;
+
+      filteredEisen.forEach(e => {
+        let coveredBySubjects = [];
+
+        Object.keys(curriculumData).forEach(year => {
+          curriculumData[year].subjects.forEach(subj => {
+            if (subj.competences && subj.competences.includes(e.id)) {
+              coveredBySubjects.push({ year, subjName: subj.name, subjId: subj.id });
+            }
+          });
+        });
+
+        const isCovered = coveredBySubjects.length > 0;
+        if (isCovered) coveredCount++;
+
+        const tr = document.createElement('tr');
+        tr.className = isCovered ? 'bg-emerald-50/40 hover:bg-emerald-100/40' : 'bg-rose-50/40 hover:bg-rose-100/40';
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold font-mono text-indigo-950">${e.kerntaak}</td>
+          <td class="p-2.5 font-semibold text-slate-600">${e.cat} (${e.type})</td>
+          <td class="p-2.5 font-medium text-slate-800">${e.tekst}</td>
+          <td class="p-2.5 text-center">
+            <button onclick="openLinkModal('${e.id}')" class="cursor-pointer transition lock-disable" title="Klik om eis te koppelen aan vak">
+              ${isCovered 
+                ? '<span class="bg-emerald-200 hover:bg-emerald-300 text-emerald-900 text-[10px] px-2.5 py-1 rounded-full font-bold inline-flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check"></i> Afgedekt</span>' 
+                : '<span class="bg-rose-200 hover:bg-rose-300 text-rose-900 text-[10px] px-2.5 py-1 rounded-full font-bold inline-flex items-center gap-1 shadow-xs"><i class="fa-solid fa-xmark"></i> Niet afgedekt</span>'
+              }
+            </button>
+          </td>
+          <td class="p-2.5 text-slate-600 italic text-[11px]">
+            ${isCovered 
+              ? coveredBySubjects.map(s => `<span class="bg-white border px-1.5 py-0.5 rounded mr-1 font-sans text-slate-800">${s.subjName} (${s.year})</span>`).join('') 
+              : '<span class="text-rose-400">Nog niet toegewezen aan een vak</span>'
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const totalEisen = filteredEisen.length;
+      const percentage = totalEisen > 0 ? Math.round((coveredCount / totalEisen) * 100) : 0;
+      document.getElementById('matrixTotalCoverageText').textContent = `Dekkingsgraad: ${percentage}% (${coveredCount} / ${totalEisen} eisen afgedekt)`;
+      applyLockState();
+    }
+
+    function openLinkModal(competenceId) {
+      if (isCurriculumLocked) {
+        alert('Het curriculum is geborgd. Ontgrendel eerst de applicatie.');
+        return;
+      }
+
+      const match = KWALIFICATIEDOSSIER_EISEN.find(e => e.id === competenceId);
+      const container = document.getElementById('linkModalContent');
+      
+      let html = `
+        <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-lg mb-3">
+          <div class="font-bold text-indigo-900">[${match.kerntaak} ${match.type}]</div>
+          <div class="text-slate-800 font-medium">${match.tekst}</div>
+          <div class="text-[10px] text-slate-500">${match.cat}</div>
+        </div>
+        <p class="font-semibold text-slate-700 mb-2">Vink de vakken aan waarin deze eis behandeld wordt:</p>
+        <div class="space-y-2 max-h-60 overflow-y-auto border rounded p-2 bg-slate-50">
+      `;
+
+      let hasSubjects = false;
+      Object.keys(curriculumData).forEach(year => {
+        curriculumData[year].subjects.forEach(subj => {
+          hasSubjects = true;
+          const isChecked = subj.competences && subj.competences.includes(competenceId);
+          html += `
+            <label class="flex items-center gap-2 p-1.5 bg-white rounded border cursor-pointer hover:bg-slate-100">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCompetenceForSubject('${year}', ${subj.id}, '${competenceId}')" class="rounded text-indigo-600 focus:ring-indigo-500">
+              <div>
+                <span class="font-bold text-slate-800">${subj.name}</span>
+                <span class="text-[10px] text-slate-500"> (${year} • ${subj.block})</span>
+              </div>
+            </label>
+          `;
+        });
+      });
+
+      if (!hasSubjects) {
+        html += `<p class="text-slate-400 italic">Er zijn nog geen vakken aangemaakt in de opleiding.</p>`;
+      }
+
+      html += `</div>`;
+      container.innerHTML = html;
+      document.getElementById('linkCompetenceModal').classList.remove('hidden');
+    }
+
+    function toggleCompetenceForSubject(year, subjectId, competenceId) {
+      const subj = curriculumData[year].subjects.find(s => s.id === subjectId);
+      if (!subj) return;
+
+      if (!subj.competences) subj.competences = [];
+
+      if (subj.competences.includes(competenceId)) {
+        subj.competences = subj.competences.filter(id => id !== competenceId);
+      } else {
+        subj.competences.push(competenceId);
+      }
+
+      saveData();
+      renderMatrixView();
+    }
+
+    function closeLinkModal() { document.getElementById('linkCompetenceModal').classList.add('hidden'); }
+
+    function updateFooterStatus(elementId, current, norm) {
+      const diff = norm - current;
+      const elem = document.getElementById(elementId);
+      if (diff === 0) {
+        elem.className = 'mt-3 pt-2 border-t text-xs font-bold text-emerald-600';
+        elem.textContent = '✓ Perfect gevuld (100%)';
+      } else if (diff > 0) {
+        elem.className = 'mt-3 pt-2 border-t text-xs font-medium text-amber-600';
+        elem.textContent = `Nog ${Math.round(diff)} uur in te vullen`;
+      } else {
+        elem.className = 'mt-3 pt-2 border-t text-xs font-bold text-rose-600';
+        elem.textContent = `⚠ Overschrijding van ${Math.abs(Math.round(diff))} uur`;
+      }
+    }
+
+    function openModal(subject) {
+      const modal = document.getElementById('detailsModal');
+      const body = document.getElementById('modalBody');
+      const title = document.getElementById('modalTitle');
+      const deleteBtn = document.getElementById('modalDeleteBtn');
+
+      title.textContent = subject.name;
+
+      let compList = '';
+      if (subject.competences && subject.competences.length > 0) {
+        compList = subject.competences.map(cid => {
+          const m = KWALIFICATIEDOSSIER_EISEN.find(e => e.id === cid);
+          return m ? `<li class="text-[11px] font-medium text-indigo-900">• [${m.kerntaak}] ${m.tekst}</li>` : '';
+        }).join('');
+      }
+
+      body.innerHTML = `
+        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border text-xs">
+          <div><strong>Categorie:</strong> ${subject.category}</div>
+          <div><strong>Periode:</strong> ${subject.block}</div>
+          <div><strong>Uren/week:</strong> ${subject.hoursWeek} u</div>
+          <div><strong>Totaal:</strong> ${subject.totalHours} u</div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Inhoud & Omschrijving:</label>
+          <p class="bg-slate-50 p-3 rounded-lg border text-slate-700 text-xs whitespace-pre-wrap">${subject.content || 'Geen inhoud meegegeven.'}</p>
+        </div>
+        ${compList ? `<div><label class="block text-xs font-semibold text-slate-600 mb-1">Gekoppelde Eisen:</label><ul class="bg-indigo-50/50 p-2.5 rounded border border-indigo-100 space-y-1">${compList}</ul></div>` : ''}
+      `;
+
+      deleteBtn.onclick = () => { deleteSubject(subject.id); closeModal(); };
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() { document.getElementById('detailsModal').classList.add('hidden'); }
+    function openImportModal() {
+      if (isCurriculumLocked) { alert('Het curriculum is geborgd.'); return; }
+      document.getElementById('importModal').classList.remove('hidden');
+    }
+    function closeImportModal() { document.getElementById('importModal').classList.add('hidden'); }
+
+    function deleteSubject(subjectId) {
+      if (isCurriculumLocked) { alert('Het curriculum is geborgd.'); return; }
+      const currentYear = document.getElementById('yearSelect').value;
+      curriculumData[currentYear].subjects = curriculumData[currentYear].subjects.filter(s => s.id !== subjectId);
+      saveData();
+      renderDashboard();
+    }
+
+    function importExcel(event) {
+      if (isCurriculumLocked) return;
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+          const currentYear = document.getElementById('yearSelect').value;
+          let importedCount = 0;
+
+          jsonData.forEach(row => {
+            const name = row['Vaknaam'] || row['Naam'] || 'Onbekend Vak';
+            let category = row['Categorie'] || 'Generiek';
+            const block = row['Blok'] || 'Heel Jaar';
+            let weeks = parseInt(row['Duur'] || row['Weken']) || (category === 'BPV' ? 40 : 32);
+            let totalHours = parseFloat(row['Totaal Uren']) || 64;
+            let hoursWeek = parseFloat(row['Uren per week']) || (totalHours / weeks);
+
+            curriculumData[currentYear].subjects.push({
+              id: Date.now() + Math.random(),
+              name: String(name),
+              category: String(category),
+              block: String(block),
+              hoursWeek: Math.round(hoursWeek * 10) / 10,
+              weeks: weeks,
+              totalHours: Math.round(totalHours * 10) / 10,
+              content: String(row['Inhoud'] || ''),
+              competences: []
+            });
+            importedCount++;
+          });
+
+          saveData();
+          closeImportModal();
+          alert(`${importedCount} vak(ken) succesvol geïmporteerd!`);
+          renderDashboard();
+        } catch (err) { alert('Fout bij import: ' + err.message); }
+      };
+      reader.readAsArrayBuffer(file);
+      event.target.value = '';
+    }
+
+    function exportToExcel() {
+      const wb = XLSX.utils.book_new();
+      const currentYear = document.getElementById('yearSelect').value;
+      const data = curriculumData[currentYear];
+
+      const excelRows = data.subjects.map(subj => ({
+        'Leerjaar': currentYear,
+        'Vaknaam': subj.name,
+        'Categorie': subj.category,
+        'Blok / Periode': subj.block,
+        'Klokuren Per Week': subj.hoursWeek,
+        'Aantal Weken': subj.weeks,
+        'Totaal Aantal Uur': subj.totalHours,
+        'Inhoud': subj.content,
+        'Gekoppelde Eisen': (subj.competences || []).join(', ')
+      }));
+
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(excelRows), "Curriculum");
+      XLSX.writeFile(wb, `Curriculum_${currentYear.replace(/\s+/g, '_')}.xlsx`);
+    }
+
+    function exportToPDF() {
+      let element;
+      let filename;
+
+      if (activeViewMode === 'single') {
+        element = document.getElementById('pdfExportArea');
+        filename = `Curriculum_Dashboard.pdf`;
+      } else if (activeViewMode === 'compare') {
+        element = document.getElementById('compareExportArea');
+        filename = `Volledig_Curriculum_Crebo.pdf`;
+      } else if (activeViewMode === 'matrix') {
+        element = document.getElementById('matrixExportArea');
+        filename = `Dekkingsmatrix.pdf`;
+      }
+
+      const opt = {
+        margin: [0.3, 0.3, 0.3, 0.3],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    function exportJSONBackup() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(curriculumData, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", `curriculum_backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function importJSONBackup(event) {
+      if (isCurriculumLocked) { alert('Ontgrendel de applicatie eerst.'); return; }
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          curriculumData = JSON.parse(e.target.result);
+          saveData();
+          populateYearSelect();
+          renderCompareCheckboxes();
+          loadCurrentYearData();
+          alert('Backup succesvol ingeladen!');
+        } catch(err) { alert('Fout bij backup import: ' + err.message); }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
